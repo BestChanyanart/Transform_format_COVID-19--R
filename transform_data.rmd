@@ -1,0 +1,116 @@
+---
+title: "Transform Covid-19 format"
+author: "Chanyanart KiattipornOpas"
+date: "10/15/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Download Library 
+```{r message=FALSE, warning=FALSE}
+library(readxl)
+library(tidyverse)
+```
+
+
+## Import Data to R studio 
+
+```{r Import csv file, message=FALSE, warning=FALSE}
+confirm <- read_csv("time_series_covid19_confirmed_global.csv")
+
+deaths <- read_csv("time_series_covid19_deaths_global.csv")
+
+recovered <- read_csv("time_series_covid19_recovered_global.csv")
+
+```
+
+## Check Observation / Rows 
+
+```{r check Observation1, echo=TRUE}
+confirm <- as_tibble(confirm)
+confirm
+# 279 Rows*635 Col
+```
+
+
+```{r check Observation2, echo=TRUE}
+deaths <- as_tibble(deaths)
+deaths
+# 279 Rows*635 Col
+```
+
+
+```{r check Observation3, echo=TRUE}
+recovered <- as_tibble(recovered)
+recovered
+# 264 Rows*635 Col 
+```
+These data are kept with Wide Format, So we need the Long Format for analyzing. 
+
+## Create New Column & Identify File Type 
+```{r}
+confirm <- confirm %>% mutate(fromfile = "Confirmed") 
+
+deaths <- deaths %>% mutate(fromfile = "Deaths")
+
+recovered <- recovered %>% mutate(fromfile = "Recovered")
+```
+
+## Combine Data
+```{r}
+
+all_data <- list(confirm, deaths, recovered)
+all_data <- bind_rows(all_data)
+
+# 822 rows * 636 Columns
+```
+
+## Drop Irrelevent Column 
+```{r}
+#colnames(all_data)
+
+all_data <- all_data %>% select(-"Province/State",-"Lat", -"Long")
+
+all_data
+```
+
+## Group by and Sum 
+Data showed duplicated countries where keep data in each area separately (ex. Australia: Victoria, New South Wales), So these data should be combined into 1 number per country per day. 
+
+```{r}
+# Rename Column
+colnames(all_data)[1] <- "Country"
+
+# Combine data with Group_by()
+all_data <- all_data %>% 
+            select(Country,
+                   fromfile,everything()) %>% 
+            group_by(Country,fromfile) %>% 
+            summarise_all(sum)
+
+all_data
+```
+
+## Transform Wide to Long Format 
+```{r}
+long <- gather(all_data,-c(Country,fromfile),
+                          key = Date,
+                          value = Case)
+
+long
+
+# Rename Column 
+colnames(long)[2] <- "Type"
+```
+
+
+## Export csv.file 
+```{r}
+write_csv(long,"/Users/Chanyanart/Desktop/Data/Archived/COVID_19/covid_lastest_date.csv")
+```
+
